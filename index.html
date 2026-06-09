@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Registro Diário de Humor</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-soft: #f1f5f9;
+    --line: #d9e0ea;
+    --text: #152033;
+    --muted: #64748b;
+    --primary: #155e75;
+    --primary-soft: #e0f2fe;
+    --ok: #15803d;
+    --warn: #a16207;
+    --err: #b91c1c;
+    --focus: rgba(21, 94, 117, .28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    width: min(980px, calc(100% - 32px));
+    margin: 24px auto 40px;
+  }
+
+  .shell {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 32px rgba(15, 23, 42, .08);
+  }
+
+  header {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 22px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: 0;
+  }
+
+  .subtitle {
+    margin: 6px 0 0;
+    color: var(--muted);
+    max-width: 680px;
+  }
+
+  .pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #bae6fd;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: .84rem;
+  }
+
+  main { padding: 22px 24px 24px; }
+
+  .grid-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .info {
+    border: 1px solid var(--line);
+    background: var(--panel-soft);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .info b {
+    display: block;
+    font-size: .78rem;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .msg {
+    margin: 12px 0;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+  }
+
+  .hidden { display: none; }
+  .okbox { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+  .warnbox { border-color: #fde68a; background: #fffbeb; color: #854d0e; }
+  .errbox { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+
+  .section {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    margin-top: 20px;
+  }
+
+  .section:first-child {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: 0;
+  }
+
+  .section h2 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+    color: #0f172a;
+  }
+
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .field {
+    min-width: 0;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  label.label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .hint {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: .88rem;
+  }
+
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    padding: 10px 11px;
+    font: inherit;
+    outline: none;
+  }
+
+  textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--focus);
+  }
+
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .option {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    background: #fff;
+  }
+
+  .option input { accent-color: var(--primary); }
+
+  .range-row {
+    display: grid;
+    grid-template-columns: 1fr 48px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+  }
+
+  .range-value {
+    display: inline-grid;
+    place-items: center;
+    min-height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-soft);
+    font-weight: 800;
+  }
+
+  .detail {
+    margin-top: 8px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--line);
+    margin-top: 22px;
+    padding-top: 18px;
+  }
+
+  .btn {
+    border: 0;
+    border-radius: 8px;
+    min-height: 42px;
+    padding: 10px 14px;
+    font-weight: 800;
+    cursor: pointer;
+    color: #fff;
+    background: var(--primary);
+  }
+
+  .btn.secondary {
+    color: var(--primary);
+    background: #e0f2fe;
+  }
+
+  .btn:disabled {
+    opacity: .58;
+    cursor: not-allowed;
+  }
+
+  .safety {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+
+  @media (max-width: 760px) {
+    .wrap { width: min(100% - 20px, 980px); margin-top: 10px; }
+    header { display: block; padding: 18px 16px; }
+    .pill { margin-top: 12px; }
+    main { padding: 16px; }
+    .grid-info,
+    .fields { grid-template-columns: 1fr; }
+    .field.full { grid-column: auto; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Registro Diário de Humor e Comportamento</h1>
+        <p class="subtitle">Preenchimento diário para acompanhar sono, humor, energia, ativação, sintomas depressivos e fatores contextuais.</p>
+      </div>
+      <span class="pill">Registro repetível</span>
+    </header>
+
+    <main>
+      <div id="alert" class="msg warnbox">Validando acesso ao formulário...</div>
+      <div id="pacInfo" class="grid-info hidden"></div>
+
+      <form id="form" class="hidden" novalidate>
+        <div id="fieldsHost"></div>
+        <div id="riskNotice" class="safety hidden">
+          Você marcou pensamento de morte ou suicídio. Se houver risco imediato, procure ajuda presencial agora, acione um serviço de emergência ou contate o profissional responsável.
+        </div>
+        <div class="actions">
+          <button id="btnSubmit" class="btn" type="submit">Enviar registro do dia</button>
+          <button id="btnClear" class="btn secondary" type="button">Limpar rascunho</button>
+          <span id="progress" class="hint"></span>
+        </div>
+        <div id="msg" class="msg hidden" role="alert" aria-live="polite"></div>
+      </form>
+    </main>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const SUPABASE_URL = "https://ydypdeafbcdcamwigjuq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_lg9teAniku65cd2dnZJvIQ_Zii0XneZ";
+const TEST_CODE_FIXO = "REGISTRO_DIARIO_HUMOR_V2";
+const AREA_PACIENTE_URL = "https://integradaneuropsicologia.github.io/area-do-paciente-v2/";
+const DAILY_LIMIT = 30;
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (selector) => document.querySelector(selector);
+const onlyDigits = (value) => String(value || "").replace(/\D+/g, "");
+const qs = (key) => new URLSearchParams(location.search).get(key) || "";
+const TOKEN = qs("token");
+const AUTOSAVE_KEY = `${TEST_CODE_FIXO}_${TOKEN || "sem_token"}_rascunho`;
+
+let patient = null;
+let startAt = Date.now();
+let sending = false;
+
+const SECTIONS = [
+  {
+    title: "Sono e estado geral",
+    fields: [
+      { key: "data_registro", label: "Data", type: "date", required: true, full: false },
+      { key: "dia_semana", label: "Dia da semana", type: "text", readonly: true, full: false },
+      { key: "horas_sono", label: "Horas de sono", type: "number", min: 0, max: 24, step: 0.5, required: true },
+      { key: "acordou_estado", label: "Acordou cansado ou descansado?", type: "radio", required: true, options: ["Cansado", "Parcialmente descansado", "Descansado"] },
+      { key: "humor_predominante", label: "Humor predominante", type: "select", required: true, options: ["Deprimido", "Irritado", "Normal", "Eufórico", "Expansivo", "Acelerado"] },
+      { key: "humor_score", label: "Humor -5 a +5", type: "range", min: -5, max: 5, step: 1, defaultValue: 0, required: true },
+      { key: "energia", label: "Energia 0 a 10", type: "range", min: 0, max: 10, step: 1, defaultValue: 5, required: true },
+      { key: "irritabilidade", label: "Irritabilidade 0 a 10", type: "range", min: 0, max: 10, step: 1, defaultValue: 0, required: true },
+      { key: "ansiedade", label: "Ansiedade 0 a 10", type: "range", min: 0, max: 10, step: 1, defaultValue: 0, required: true }
+    ]
+  },
+  {
+    title: "Sinais de ativação",
+    fields: [
+      { key: "fala_aumentada", label: "Fala mais aumentada que o habitual?", type: "yesno", required: true },
+      { key: "pensamentos_acelerados", label: "Pensamentos acelerados?", type: "yesno", required: true },
+      { key: "mais_distraido", label: "Mais distraído que o habitual?", type: "yesno", required: true },
+      { key: "grandiosidade", label: "Autoestima inflada/grandiosidade?", type: "yesno", required: true },
+      { key: "aumento_atividade", label: "Aumento de produtividade/projetos/atividade?", type: "yesno", required: true },
+      { key: "agitacao_corporal", label: "Agitação corporal?", type: "yesno", required: true },
+      { key: "comportamento_risco", label: "Comportamento de risco?", type: "yesno", required: true, detail: { key: "comportamento_risco_qual", label: "Qual comportamento de risco?" } },
+      { key: "gastos_impulsivos", label: "Gastos impulsivos?", type: "yesno", required: true, detail: { key: "gastos_impulsivos_valor", label: "Valor aproximado" } },
+      { key: "libido_exposicao", label: "Aumento de libido ou exposição sexual?", type: "yesno", required: true },
+      { key: "conflitos_interpessoais", label: "Conflitos interpessoais?", type: "yesno", required: true, detail: { key: "conflitos_com_quem", label: "Com quem?" } },
+      { key: "prejuizo_funcional", label: "Prejuízo no trabalho/estudo/família?", type: "yesno", required: true, detail: { key: "prejuizo_qual", label: "Qual prejuízo?" } },
+      { key: "mudanca_percebida", label: "Alguém percebeu mudança?", type: "yesno", required: true, detail: { key: "mudanca_o_que_disseram", label: "O que disseram?" } }
+    ]
+  },
+  {
+    title: "Sintomas depressivos e risco",
+    fields: [
+      {
+        key: "sintomas_depressivos",
+        label: "Sintomas depressivos presentes",
+        type: "checkboxes",
+        full: true,
+        options: ["Nenhum", "Tristeza", "Perda de interesse/prazer", "Cansaço", "Culpa ou inutilidade", "Isolamento", "Alteração de apetite", "Alteração de sono", "Dificuldade de concentração", "Choro", "Desesperança"]
+      },
+      { key: "pensamentos_morte_suicidio", label: "Pensamentos de morte ou suicídio?", type: "yesno", required: true, full: true, detail: { key: "pensamentos_morte_suicidio_detalhe", label: "Detalhe, se quiser registrar" }, safety: true }
+    ]
+  },
+  {
+    title: "Contexto do dia",
+    fields: [
+      {
+        key: "uso_substancias",
+        label: "Uso de álcool/drogas/estimulantes/cafeína",
+        type: "checkboxes",
+        full: true,
+        options: ["Nenhum", "Álcool", "Drogas", "Estimulantes", "Cafeína", "Nicotina", "Outro"]
+      },
+      { key: "uso_substancias_detalhe", label: "Detalhes do uso, quantidade ou horário", type: "textarea", full: true },
+      { key: "mudanca_medicacao", label: "Mudança de medicação?", type: "textarea", full: true },
+      { key: "evento_estressor", label: "Evento estressor relevante", type: "textarea", full: true },
+      { key: "observacao_livre", label: "Observação livre do dia", type: "textarea", full: true }
+    ]
+  }
+];
+
+const ALL_FIELDS = SECTIONS.flatMap((section) => section.fields);
+const YESNO_KEYS_ATIVACAO = [
+  "fala_aumentada",
+  "pensamentos_acelerados",
+  "mais_distraido",
+  "grandiosidade",
+  "aumento_atividade",
+  "agitacao_corporal",
+  "comportamento_risco",
+  "gastos_impulsivos",
+  "libido_exposicao",
+  "conflitos_interpessoais",
+  "prejuizo_funcional",
+  "mudanca_percebida"
+];
+
+function setBox(id, text, kind = "ok") {
+  const el = $(id);
+  if (!el) return;
+  if (!text) {
+    el.className = "msg hidden";
+    el.textContent = "";
+    return;
+  }
+  el.className = `msg ${kind === "ok" ? "okbox" : kind === "warn" ? "warnbox" : "errbox"}`;
+  el.textContent = text;
+}
+
+function maskCPF(cpf) {
+  const d = onlyDigits(cpf || "");
+  if (d.length !== 11) return cpf || "";
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function normalizeCPF(cpf) {
+  return String(cpf || "").replace(/\D/g, "");
+}
+
+function fmtDateISO(iso) {
+  if (!iso) return "";
+  const [y, m, d] = String(iso).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+}
+
+function getTokenFromUrl() {
+  const params = new URLSearchParams(location.search);
+  return String(params.get("token") || params.get("t") || TOKEN || "").trim();
+}
+
+function getTestCodeFromUrl() {
+  const params = new URLSearchParams(location.search);
+  return String(params.get("form") || params.get("code") || TEST_CODE_FIXO).trim();
+}
+
+function redirectToAreaPaciente(cpf) {
+  const u = new URL(AREA_PACIENTE_URL, location.href);
+  const token = getTokenFromUrl();
+  if (token) u.searchParams.set("token", token);
+  else if (cpf) u.searchParams.set("cpf", normalizeCPF(cpf));
+  location.href = u.toString();
+}
+
+function isObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function containsTestCode(jsonb, testCode) {
+  if (!jsonb) return false;
+  if (typeof jsonb === "string") return jsonb === testCode;
+  if (Array.isArray(jsonb)) {
+    return jsonb.some((item) => {
+      if (typeof item === "string") return item === testCode;
+      if (isObject(item)) return item.code === testCode || item.test_code === testCode || item.id === testCode || containsTestCode(item, testCode);
+      return false;
+    });
+  }
+  if (isObject(jsonb)) {
+    if (Object.prototype.hasOwnProperty.call(jsonb, testCode)) {
+      const value = jsonb[testCode];
+      return value !== false && value !== null && value !== undefined;
+    }
+    if (jsonb.code === testCode || jsonb.test_code === testCode || jsonb.id === testCode) return true;
+    return Object.values(jsonb).some((value) => containsTestCode(value, testCode));
+  }
+  return false;
+}
+
+function normalizeTestsFeitosForSave(current) {
+  const out = {};
+  if (!current) return out;
+  if (typeof current === "string") {
+    out[current] = true;
+    return out;
+  }
+  if (Array.isArray(current)) {
+    current.forEach((item) => {
+      if (typeof item === "string") out[item] = true;
+      else if (isObject(item)) out[item.code || item.test_code || item.id || JSON.stringify(item)] = item;
+    });
+    return out;
+  }
+  if (isObject(current)) return { ...current };
+  return out;
+}
+
+function getDailyProgress(current, testCode) {
+  if (!current) return { count: 0, feito: false, entry: null };
+  if (isObject(current) && Object.prototype.hasOwnProperty.call(current, testCode)) {
+    const entry = current[testCode];
+    if (entry === true) return { count: DAILY_LIMIT, feito: true, entry };
+    if (isObject(entry)) {
+      const count = Number(entry.count ?? entry.registros ?? entry.total ?? 0);
+      const feito = Boolean(entry.feito) || count >= DAILY_LIMIT;
+      return { count: Number.isFinite(count) ? Math.min(count, DAILY_LIMIT) : 0, feito, entry };
+    }
+  }
+  if (Array.isArray(current)) {
+    const entry = current.find((item) => isObject(item) && [item.code, item.test_code, item.id].includes(testCode));
+    if (entry) {
+      const count = Number(entry.count ?? entry.registros ?? entry.total ?? 0);
+      const feito = Boolean(entry.feito) || count >= DAILY_LIMIT;
+      return { count: Number.isFinite(count) ? Math.min(count, DAILY_LIMIT) : 0, feito, entry };
+    }
+  }
+  return { count: containsTestCode(current, testCode) ? DAILY_LIMIT : 0, feito: containsTestCode(current, testCode), entry: null };
+}
+
+function buildUpdatedDailyTestsFeitos(current, testCode, submittedAt, dataRegistro) {
+  const out = normalizeTestsFeitosForSave(current);
+  const progress = getDailyProgress(current, testCode);
+  const nextCount = Math.min((progress.count || 0) + 1, DAILY_LIMIT);
+  const previousEntry = isObject(progress.entry) ? progress.entry : {};
+  out[testCode] = {
+    ...previousEntry,
+    feito: nextCount >= DAILY_LIMIT,
+    repeatable: true,
+    count: nextCount,
+    limit: DAILY_LIMIT,
+    started_at: previousEntry.started_at || submittedAt,
+    last_submitted_at: submittedAt,
+    last_data_registro: dataRegistro
+  };
+  return out;
+}
+
+function isTestLiberado(testsLiberados, testCode) {
+  if (!containsTestCode(testsLiberados, testCode)) return false;
+  if (isObject(testsLiberados) && Object.prototype.hasOwnProperty.call(testsLiberados, testCode)) {
+    const value = testsLiberados[testCode];
+    if (typeof value === "boolean") return value;
+    if (isObject(value) && "liberado" in value) return Boolean(value.liberado);
+    if (typeof value === "string") return !["false", "0", "nao", "não"].includes(value.toLowerCase());
+    return Boolean(value);
+  }
+  return true;
+}
+
+async function getPatientFormAccessByToken() {
+  const token = getTokenFromUrl();
+  const testCode = getTestCodeFromUrl();
+  if (!token || !testCode) return { data: null, error: new Error("Link inválido ou formulário não informado.") };
+  const { data, error } = await supabaseClient.rpc("get_public_patient_form_access", {
+    p_token: token,
+    p_form_code: testCode
+  });
+  if (error) return { data: null, error };
+  return { data: Array.isArray(data) ? data[0] : data, error: null };
+}
+
+async function validarAcessoAoTeste() {
+  const token = getTokenFromUrl();
+  const testCode = getTestCodeFromUrl();
+  if (!token) {
+    setBox("#alert", "Link inválido ou expirado. Abra o formulário pela área do paciente.", "err");
+    return null;
+  }
+  setBox("#alert", "Validando acesso ao formulário...", "warn");
+  const { data, error } = await getPatientFormAccessByToken();
+  if (error) {
+    console.error(error);
+    setBox("#alert", "Não foi possível validar o acesso ao formulário.", "err");
+    return null;
+  }
+  if (!data) {
+    setBox("#alert", "Token inválido, expirado ou sem CPF vinculado.", "err");
+    return null;
+  }
+  if (!isTestLiberado(data.tests_liberados, testCode)) {
+    setBox("#alert", "Este registro diário não está liberado para você.", "err");
+    return null;
+  }
+  return data;
+}
+
+function todayISO() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function weekdayFromISO(dateISO) {
+  if (!dateISO) return "";
+  const d = new Date(`${dateISO}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-BR", { weekday: "long" });
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderPatientInfo() {
+  const host = $("#pacInfo");
+  host.innerHTML = "";
+  const info = [
+    ["Nome", patient?.nome || "-"],
+    ["CPF", maskCPF(patient?.cpf || "") || "-"],
+    ["Nascimento", fmtDateISO(patient?.data_nascimento || "") || "-"],
+    ["Formulário", "Registro diário"]
+  ];
+  for (const [label, value] of info) {
+    const div = document.createElement("div");
+    div.className = "info";
+    div.innerHTML = `<b>${escapeHTML(label)}</b><div>${escapeHTML(value)}</div>`;
+    host.appendChild(div);
+  }
+  host.classList.remove("hidden");
+}
+
+function optionId(fieldKey, index) {
+  return `${fieldKey}_${index}`.replace(/[^\w-]/g, "_");
+}
+
+function renderField(field) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `field${field.full ? " full" : ""}`;
+  const required = field.required ? " required" : "";
+  const label = `<label class="label" for="${field.key}">${escapeHTML(field.label)}${field.required ? " *" : ""}</label>`;
+
+  if (field.type === "date") {
+    wrapper.innerHTML = `${label}<input id="${field.key}" name="${field.key}" type="date"${required}>`;
+    return wrapper;
+  }
+
+  if (field.type === "text") {
+    wrapper.innerHTML = `${label}<input id="${field.key}" name="${field.key}" type="text"${field.readonly ? " readonly" : ""}${required}>`;
+    return wrapper;
+  }
+
+  if (field.type === "number") {
+    wrapper.innerHTML = `${label}<input id="${field.key}" name="${field.key}" type="number" min="${field.min}" max="${field.max}" step="${field.step || 1}"${required}>`;
+    return wrapper;
+  }
+
+  if (field.type === "select") {
+    const options = [`<option value="">Selecione</option>`].concat(field.options.map((opt) => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`));
+    wrapper.innerHTML = `${label}<select id="${field.key}" name="${field.key}"${required}>${options.join("")}</select>`;
+    return wrapper;
+  }
+
+  if (field.type === "range") {
+    const value = field.defaultValue ?? field.min ?? 0;
+    wrapper.innerHTML = `
+      ${label}
+      <div class="range-row">
+        <input id="${field.key}" name="${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step || 1}" value="${value}">
+        <span class="range-value" data-range-value="${field.key}">${value}</span>
+      </div>
+    `;
+    return wrapper;
+  }
+
+  if (field.type === "radio" || field.type === "yesno") {
+    const options = field.type === "yesno" ? ["Sim", "Não"] : field.options;
+    const radios = options.map((opt, index) => {
+      const id = optionId(field.key, index);
+      return `
+        <label class="option" for="${id}">
+          <input id="${id}" type="radio" name="${field.key}" value="${escapeHTML(opt)}"${required}>
+          <span>${escapeHTML(opt)}</span>
+        </label>
+      `;
+    }).join("");
+    const detail = field.detail
+      ? `<div class="detail hidden" data-detail-for="${field.key}">
+          <label class="label" for="${field.detail.key}">${escapeHTML(field.detail.label)}</label>
+          <input id="${field.detail.key}" name="${field.detail.key}" type="text">
+        </div>`
+      : "";
+    wrapper.innerHTML = `${label}<div class="options">${radios}</div>${detail}`;
+    return wrapper;
+  }
+
+  if (field.type === "checkboxes") {
+    const boxes = field.options.map((opt, index) => {
+      const id = optionId(field.key, index);
+      return `
+        <label class="option" for="${id}">
+          <input id="${id}" type="checkbox" name="${field.key}" value="${escapeHTML(opt)}">
+          <span>${escapeHTML(opt)}</span>
+        </label>
+      `;
+    }).join("");
+    wrapper.innerHTML = `${label}<div class="options">${boxes}</div>`;
+    return wrapper;
+  }
+
+  if (field.type === "textarea") {
+    wrapper.innerHTML = `${label}<textarea id="${field.key}" name="${field.key}"></textarea>`;
+    return wrapper;
+  }
+
+  return wrapper;
+}
+
+function renderForm() {
+  const host = $("#fieldsHost");
+  host.innerHTML = "";
+  for (const section of SECTIONS) {
+    const sectionEl = document.createElement("section");
+    sectionEl.className = "section";
+    const fields = document.createElement("div");
+    fields.className = "fields";
+    section.fields.forEach((field) => fields.appendChild(renderField(field)));
+    sectionEl.innerHTML = `<h2>${escapeHTML(section.title)}</h2>`;
+    sectionEl.appendChild(fields);
+    host.appendChild(sectionEl);
+  }
+
+  $("#data_registro").value = todayISO();
+  updateWeekday();
+  bindFormEvents();
+  restoreAutosave();
+  updateProgress();
+}
+
+function bindFormEvents() {
+  document.querySelectorAll('input[type="range"]').forEach((input) => {
+    const out = document.querySelector(`[data-range-value="${input.name}"]`);
+    input.addEventListener("input", () => {
+      if (out) out.textContent = input.value;
+      autosave();
+    });
+  });
+
+  $("#data_registro").addEventListener("change", () => {
+    updateWeekday();
+    autosave();
+  });
+
+  $("#form").addEventListener("input", () => {
+    updateDetails();
+    updateSafetyNotice();
+    updateProgress();
+    autosave();
+  });
+  $("#form").addEventListener("change", () => {
+    updateDetails();
+    updateSafetyNotice();
+    updateProgress();
+    autosave();
+  });
+
+  $("#btnClear").addEventListener("click", () => {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    $("#form").reset();
+    $("#data_registro").value = todayISO();
+    updateWeekday();
+    updateDetails();
+    updateSafetyNotice();
+    updateProgress();
+    setBox("#msg", "Rascunho local limpo.", "ok");
+  });
+}
+
+function updateWeekday() {
+  $("#dia_semana").value = weekdayFromISO($("#data_registro").value);
+}
+
+function radioValue(name) {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+}
+
+function checkboxValues(name) {
+  return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => el.value);
+}
+
+function isYes(value) {
+  return String(value || "").toLowerCase() === "sim";
+}
+
+function updateDetails() {
+  ALL_FIELDS.forEach((field) => {
+    if (!field.detail) return;
+    const holder = document.querySelector(`[data-detail-for="${field.key}"]`);
+    if (!holder) return;
+    const show = isYes(radioValue(field.key));
+    holder.classList.toggle("hidden", !show);
+    const input = holder.querySelector("input, textarea");
+    if (input && !show) input.value = "";
+  });
+}
+
+function updateSafetyNotice() {
+  const risk = isYes(radioValue("pensamentos_morte_suicidio"));
+  $("#riskNotice").classList.toggle("hidden", !risk);
+}
+
+function valueForField(field) {
+  if (field.type === "radio" || field.type === "yesno") {
+    const resposta = radioValue(field.key);
+    const detailValue = field.detail ? String($(`#${field.detail.key}`)?.value || "").trim() : "";
+    return { resposta, value: field.type === "yesno" ? isYes(resposta) : resposta, detalhe: detailValue };
+  }
+  if (field.type === "checkboxes") {
+    const values = checkboxValues(field.key);
+    return { resposta: values.length ? values.join(", ") : "Nenhum informado", value: values };
+  }
+  if (field.type === "number" || field.type === "range") {
+    const raw = $(`#${field.key}`)?.value;
+    const num = raw === "" || raw === null || raw === undefined ? null : Number(raw);
+    return { resposta: num === null ? "" : String(num), value: num };
+  }
+  const value = String($(`#${field.key}`)?.value || "").trim();
+  return { resposta: value, value };
+}
+
+function collectAnswers() {
+  const answers = {};
+  const missing = [];
+  for (const field of ALL_FIELDS) {
+    const entry = valueForField(field);
+    answers[field.key] = entry.value;
+    if (entry.detalhe !== undefined) answers[field.detail.key] = entry.detalhe;
+    if (field.required) {
+      const emptyRadio = (field.type === "radio" || field.type === "yesno") && !entry.resposta;
+      const emptyValue = !(field.type === "radio" || field.type === "yesno") && (entry.value === "" || entry.value === null || entry.value === undefined);
+      if (emptyRadio || emptyValue) missing.push(field.label);
+    }
+  }
+  return { answers, missing };
+}
+
+function buildReadableResults() {
+  const rows = [];
+  for (const field of ALL_FIELDS) {
+    const entry = valueForField(field);
+    rows.push({
+      key: field.key,
+      pergunta: field.label,
+      resposta: entry.resposta,
+      valor: entry.value
+    });
+    if (field.detail && entry.detalhe) {
+      rows.push({
+        key: field.detail.key,
+        pergunta: field.detail.label,
+        resposta: entry.detalhe,
+        valor: entry.detalhe
+      });
+    }
+  }
+  return rows;
+}
+
+function countSelected(values) {
+  return (Array.isArray(values) ? values : []).filter((value) => value !== "Nenhum").length;
+}
+
+function classifyHumor(score) {
+  if (score <= -3) return "humor rebaixado importante";
+  if (score < 0) return "humor rebaixado";
+  if (score === 0) return "humor neutro";
+  if (score <= 2) return "humor elevado leve";
+  return "humor elevado importante";
+}
+
+function buildMeta(answers, durationSec, registroNumero) {
+  const activationTotal = YESNO_KEYS_ATIVACAO.reduce((sum, key) => sum + (answers[key] === true ? 1 : 0), 0);
+  const impulsivityTotal = ["comportamento_risco", "gastos_impulsivos", "libido_exposicao"].reduce((sum, key) => sum + (answers[key] === true ? 1 : 0), 0);
+  const depressiveCount = countSelected(answers.sintomas_depressivos);
+  const substancesCount = countSelected(answers.uso_substancias);
+  const suicideRisk = answers.pensamentos_morte_suicidio === true;
+  const prejudice = answers.prejuizo_funcional === true;
+  const riskBehavior = answers.comportamento_risco === true;
+  const alertLevel = suicideRisk ? "alerta de risco" : riskBehavior || prejudice || activationTotal >= 6 ? "atenção clínica" : "registro de rotina";
+
+  return [
+    { key: "data_registro", label: "Data do registro", value: answers.data_registro },
+    { key: "dia_semana", label: "Dia da semana", value: answers.dia_semana },
+    { key: "registro_numero", label: "Número do registro no ciclo", value: registroNumero },
+    { key: "registro_limite", label: "Limite do ciclo", value: DAILY_LIMIT },
+    { key: "ciclo_concluido", label: "Ciclo de 30 registros concluído", value: registroNumero >= DAILY_LIMIT },
+    { key: "horas_sono", label: "Horas de sono", value: answers.horas_sono },
+    { key: "humor_score", label: "Humor -5 a +5", value: answers.humor_score },
+    { key: "humor_classificacao", label: "Classificação do humor", value: classifyHumor(Number(answers.humor_score || 0)) },
+    { key: "energia", label: "Energia 0 a 10", value: answers.energia },
+    { key: "irritabilidade", label: "Irritabilidade 0 a 10", value: answers.irritabilidade },
+    { key: "ansiedade", label: "Ansiedade 0 a 10", value: answers.ansiedade },
+    { key: "ativacao_total", label: "Total de sinais de ativação", value: activationTotal },
+    { key: "impulsividade_total", label: "Indicadores de impulsividade/risco", value: impulsivityTotal },
+    { key: "sintomas_depressivos_total", label: "Total de sintomas depressivos marcados", value: depressiveCount },
+    { key: "uso_substancias_total", label: "Total de substâncias/contextos marcados", value: substancesCount },
+    { key: "risco_suicidio_presente", label: "Pensamentos de morte ou suicídio", value: suicideRisk },
+    { key: "comportamento_risco_presente", label: "Comportamento de risco presente", value: riskBehavior },
+    { key: "prejuizo_funcional_presente", label: "Prejuízo funcional presente", value: prejudice },
+    { key: "nivel_alerta", label: "Nível de alerta do registro", value: alertLevel },
+    { key: "duracao_segundos", label: "Duração em segundos", value: durationSec }
+  ];
+}
+
+function updateProgress() {
+  const requiredFields = ALL_FIELDS.filter((field) => field.required);
+  const answered = requiredFields.filter((field) => {
+    const entry = valueForField(field);
+    if (field.type === "radio" || field.type === "yesno") return Boolean(entry.resposta);
+    return entry.value !== "" && entry.value !== null && entry.value !== undefined;
+  }).length;
+  $("#progress").textContent = `${answered}/${requiredFields.length} campos obrigatórios preenchidos`;
+}
+
+function autosave() {
+  try {
+    const { answers } = collectAnswers();
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ code: TEST_CODE_FIXO, saved_at: new Date().toISOString(), answers }));
+  } catch (_) {}
+}
+
+function restoreAutosave() {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const answers = parsed?.answers || {};
+    Object.entries(answers).forEach(([key, value]) => {
+      const field = ALL_FIELDS.find((item) => item.key === key);
+      if (field?.type === "radio" || field?.type === "yesno") {
+        const radio = document.querySelector(`input[name="${key}"][value="${value ? "Sim" : "Não"}"]`) || document.querySelector(`input[name="${key}"][value="${value}"]`);
+        if (radio) radio.checked = true;
+        return;
+      }
+      if (field?.type === "checkboxes" && Array.isArray(value)) {
+        value.forEach((item) => {
+          const box = document.querySelector(`input[name="${key}"][value="${CSS.escape(item)}"]`);
+          if (box) box.checked = true;
+        });
+        return;
+      }
+      const input = document.querySelector(`[name="${key}"]`);
+      if (input && value !== null && value !== undefined) input.value = value;
+    });
+    updateWeekday();
+    updateDetails();
+    updateSafetyNotice();
+    document.querySelectorAll('input[type="range"]').forEach((input) => {
+      const out = document.querySelector(`[data-range-value="${input.name}"]`);
+      if (out) out.textContent = input.value;
+    });
+  } catch (_) {}
+}
+
+async function submitForm(event) {
+  event.preventDefault();
+  if (sending) return;
+  sending = true;
+  const btn = $("#btnSubmit");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  setBox("#msg", "");
+
+  try {
+    const { answers, missing } = collectAnswers();
+    if (missing.length) {
+      throw new Error(`Preencha os campos obrigatórios: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`);
+    }
+
+    const cpf = normalizeCPF(patient?.cpf || "");
+    const testCode = getTestCodeFromUrl();
+    const submittedAt = new Date().toISOString();
+    const durationSec = Math.round((Date.now() - startAt) / 1000);
+    const results = buildReadableResults();
+
+    const { data: patientRow, error: patientError } = await getPatientFormAccessByToken();
+    if (patientError) throw new Error("Erro ao validar paciente antes de salvar.");
+    if (!patientRow) throw new Error("CPF não encontrado.");
+    if (!isTestLiberado(patientRow.tests_liberados, testCode)) throw new Error("Registro diário não liberado.");
+    const progress = getDailyProgress(patientRow.tests_feitos, testCode);
+    if (progress.feito || progress.count >= DAILY_LIMIT) {
+      throw new Error("O ciclo de 30 registros já foi concluído. Este formulário está marcado como feito.");
+    }
+
+    const registroNumero = Math.min(progress.count + 1, DAILY_LIMIT);
+    const resultsMeta = buildMeta(answers, durationSec, registroNumero);
+    const { error: insertError } = await supabaseClient.from("respostas").insert([{
+      cpf,
+      code: testCode,
+      submitted_at: submittedAt,
+      results,
+      results_meta: resultsMeta
+    }]);
+
+    if (insertError) {
+      throw new Error(("Erro ao salvar registro: " + (insertError.message || "")).trim());
+    }
+
+    const nextTestsFeitos = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro);
+    const { error: updateError } = await supabaseClient
+      .from("patients")
+      .update({ tests_feitos: nextTestsFeitos })
+      .eq("cpf", cpf);
+    if (updateError) console.warn("Registro salvo, mas falhou ao atualizar o progresso de 30 dias.", updateError);
+
+    localStorage.removeItem(AUTOSAVE_KEY);
+    const risk = answers.pensamentos_morte_suicidio === true;
+    const complete = registroNumero >= DAILY_LIMIT;
+    const doneText = complete ? " Ciclo de 30 registros concluído." : ` Registro ${registroNumero}/${DAILY_LIMIT}.`;
+    setBox("#msg", risk ? `Registro enviado.${doneText} Como houve indicação de risco, entre em contato com o profissional responsável.` : `Registro diário enviado.${doneText} Retornando ao portal...`, risk ? "warn" : "ok");
+    setTimeout(() => redirectToAreaPaciente(cpf), risk ? 1800 : 900);
+  } catch (err) {
+    console.error(err);
+    setBox("#msg", err.message || "Falha ao enviar. Tente novamente.", "err");
+    sending = false;
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+(async function boot() {
+  try {
+    const access = await validarAcessoAoTeste();
+    if (!access) return;
+    patient = access;
+    renderPatientInfo();
+    renderForm();
+    $("#form").classList.remove("hidden");
+    setBox("#alert", "");
+    startAt = Date.now();
+    $("#form").addEventListener("submit", submitForm);
+  } catch (err) {
+    console.error(err);
+    setBox("#alert", err.message || "Falha ao abrir o formulário. Tente novamente mais tarde.", "err");
+  }
+})();
+</script>
+</body>
+</html>
