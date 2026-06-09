@@ -539,6 +539,19 @@ function buildUpdatedDailyTestsFeitos(current, testCode, submittedAt, dataRegist
   return out;
 }
 
+async function fetchDailyResponseCount(cpf, testCode) {
+  const { count, error } = await supabaseClient
+    .from("respostas")
+    .select("code", { count: "exact", head: true })
+    .eq("cpf", cpf)
+    .eq("code", testCode);
+  if (error) {
+    console.warn("Não foi possível contar os registros diários já enviados.", error);
+    return null;
+  }
+  return Number.isFinite(Number(count)) ? Number(count) : 0;
+}
+
 function isTestLiberado(testsLiberados, testCode) {
   if (!containsTestCode(testsLiberados, testCode)) return false;
   if (isObject(testsLiberados) && Object.prototype.hasOwnProperty.call(testsLiberados, testCode)) {
@@ -987,11 +1000,13 @@ async function submitForm(event) {
     if (!patientRow) throw new Error("CPF não encontrado.");
     if (!isTestLiberado(patientRow.tests_liberados, testCode)) throw new Error("Registro diário não liberado.");
     const progress = getDailyProgress(patientRow.tests_feitos, testCode);
-    if (progress.feito || progress.count >= DAILY_LIMIT) {
+    const responseCount = await fetchDailyResponseCount(cpf, testCode);
+    const currentCount = Math.max(progress.count || 0, responseCount ?? 0);
+    if (progress.feito || currentCount >= DAILY_LIMIT) {
       throw new Error("O ciclo de 30 registros já foi concluído. Este formulário está marcado como feito.");
     }
 
-    const registroNumero = Math.min(progress.count + 1, DAILY_LIMIT);
+    const registroNumero = Math.min(currentCount + 1, DAILY_LIMIT);
     const resultsMeta = buildMeta(answers, durationSec, registroNumero);
     const { error: insertError } = await supabaseClient.from("respostas").insert([{
       cpf,
@@ -1005,7 +1020,10 @@ async function submitForm(event) {
       throw new Error(("Erro ao salvar registro: " + (insertError.message || "")).trim());
     }
 
-    const nextTestsFeitos = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro);
+    const progressForSave = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro);
+    progressForSave[testCode].count = registroNumero;
+    progressForSave[testCode].feito = registroNumero >= DAILY_LIMIT;
+    const nextTestsFeitos = progressForSave;
     const { error: updateError } = await supabaseClient
       .from("patients")
       .update({ tests_feitos: nextTestsFeitos })
