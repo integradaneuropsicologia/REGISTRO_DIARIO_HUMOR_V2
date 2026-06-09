@@ -531,10 +531,10 @@ function getDailyProgress(current, testCode) {
   return { count: containsTestCode(current, testCode) ? DAILY_LIMIT : 0, feito: containsTestCode(current, testCode), entry: null };
 }
 
-function buildUpdatedDailyTestsFeitos(current, testCode, submittedAt, dataRegistro) {
+function buildUpdatedDailyTestsFeitos(current, testCode, submittedAt, dataRegistro, registroNumero) {
   const out = normalizeTestsFeitosForSave(current);
   const progress = getDailyProgress(current, testCode);
-  const nextCount = Math.min((progress.count || 0) + 1, DAILY_LIMIT);
+  const nextCount = Math.min(Number(registroNumero) || (progress.count || 0) + 1, DAILY_LIMIT);
   const previousEntry = isObject(progress.entry) ? progress.entry : {};
   out[testCode] = {
     ...previousEntry,
@@ -549,17 +549,94 @@ function buildUpdatedDailyTestsFeitos(current, testCode, submittedAt, dataRegist
   return out;
 }
 
-async function fetchDailyResponseCount(cpf, testCode) {
-  const { count, error } = await supabaseClient
-    .from("respostas")
-    .select("code", { count: "exact", head: true })
-    .eq("cpf", cpf)
-    .eq("code", testCode);
-  if (error) {
-    console.warn("Não foi possível contar os registros diários já enviados.", error);
-    return null;
+function metaValue(meta, key) {
+  if (Array.isArray(meta)) {
+    return meta.find((item) => item && item.key === key)?.value;
   }
-  return Number.isFinite(Number(count)) ? Number(count) : 0;
+  if (isObject(meta)) return meta[key];
+  return undefined;
+}
+
+function extractDailyEntries(row) {
+  if (!row) return [];
+  const stored = metaValue(row.results_meta, "registros");
+  if (Array.isArray(stored)) return stored.filter((item) => isObject(item));
+
+  const registroNumero = Number(metaValue(row.results_meta, "registro_numero") || 1);
+  return [{
+    registro_numero: Number.isFinite(registroNumero) && registroNumero > 0 ? registroNumero : 1,
+    submitted_at: row.submitted_at || null,
+    data_registro: metaValue(row.results_meta, "data_registro") || null,
+    results: Array.isArray(row.results) ? row.results : [],
+    results_meta: Array.isArray(row.results_meta) ? row.results_meta : []
+  }];
+}
+
+function dailyCountFromResponse(row) {
+  if (!row) return 0;
+  const entries = extractDailyEntries(row);
+  const storedTotal = Number(metaValue(row.results_meta, "registros_total"));
+  const registroNumero = Number(metaValue(row.results_meta, "registro_numero"));
+  return Math.max(
+    entries.length,
+    Number.isFinite(storedTotal) ? storedTotal : 0,
+    Number.isFinite(registroNumero) ? registroNumero : 0
+  );
+}
+
+async function fetchDailyResponseState(cpf, testCode) {
+  const { data, error } = await supabaseClient
+    .from("respostas")
+    .select("submitted_at, results, results_meta")
+    .eq("cpf", cpf)
+    .eq("code", testCode)
+    .maybeSingle();
+  if (error) {
+    console.warn("Não foi possível carregar o registro diário já salvo.", error);
+    return { row: null, count: null, entries: [] };
+  }
+  const entries = extractDailyEntries(data);
+  return { row: data || null, count: dailyCountFromResponse(data), entries };
+}
+
+function buildStoredDailyPayload(existingRow, currentEntry, currentResults, currentMeta) {
+  const previousEntries = extractDailyEntries(existingRow);
+  const entries = previousEntries.concat(currentEntry);
+  const total = Math.max(entries.length, Number(currentEntry.registro_numero) || entries.length);
+  const results = currentResults.concat([{
+    key: "registros_historico",
+    pergunta: "Histórico dos registros diários",
+    resposta: `${total} registro${total === 1 ? "" : "s"} no ciclo`,
+    valor: entries
+  }]);
+  const resultsMeta = currentMeta.concat([
+    { key: "registros_total", label: "Total de registros no ciclo", value: total },
+    { key: "registros", label: "Registros diários", value: entries }
+  ]);
+  return { results, results_meta: resultsMeta };
+}
+
+async function saveDailyResponse({ cpf, testCode, submittedAt, existingRow, results, resultsMeta, currentEntry }) {
+  const payload = {
+    submitted_at: submittedAt,
+    ...buildStoredDailyPayload(existingRow, currentEntry, results, resultsMeta)
+  };
+
+  if (existingRow) {
+    const { error } = await supabaseClient
+      .from("respostas")
+      .update(payload)
+      .eq("cpf", cpf)
+      .eq("code", testCode);
+    return error;
+  }
+
+  const { error } = await supabaseClient.from("respostas").insert([{
+    cpf,
+    code: testCode,
+    ...payload
+  }]);
+  return error;
 }
 
 function isTestLiberado(testsLiberados, testCode) {
@@ -1036,27 +1113,36 @@ async function submitForm(event) {
     if (!patientRow) throw new Error("CPF não encontrado.");
     if (!isTestLiberado(patientRow.tests_liberados, testCode)) throw new Error("Registro diário não liberado.");
     const progress = getDailyProgress(patientRow.tests_feitos, testCode);
-    const responseCount = await fetchDailyResponseCount(cpf, testCode);
-    const currentCount = Math.max(progress.count || 0, responseCount ?? 0);
+    const responseState = await fetchDailyResponseState(cpf, testCode);
+    const currentCount = Math.max(progress.count || 0, responseState.count ?? 0);
     if (progress.feito || currentCount >= DAILY_LIMIT) {
       throw new Error("O ciclo de 30 registros já foi concluído. Este formulário está marcado como feito.");
     }
 
     const registroNumero = Math.min(currentCount + 1, DAILY_LIMIT);
     const resultsMeta = buildMeta(answers, durationSec, registroNumero);
-    const { error: insertError } = await supabaseClient.from("respostas").insert([{
-      cpf,
-      code: testCode,
+    const currentEntry = {
+      registro_numero: registroNumero,
       submitted_at: submittedAt,
+      data_registro: answers.data_registro,
       results,
       results_meta: resultsMeta
-    }]);
+    };
+    const saveError = await saveDailyResponse({
+      cpf,
+      testCode,
+      submittedAt,
+      existingRow: responseState.row,
+      results,
+      resultsMeta,
+      currentEntry
+    });
 
-    if (insertError) {
-      throw new Error(("Erro ao salvar registro: " + (insertError.message || "")).trim());
+    if (saveError) {
+      throw new Error(("Erro ao salvar registro: " + (saveError.message || "")).trim());
     }
 
-    const progressForSave = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro);
+    const progressForSave = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro, registroNumero);
     progressForSave[testCode].count = registroNumero;
     progressForSave[testCode].feito = registroNumero >= DAILY_LIMIT;
     const nextTestsFeitos = progressForSave;
