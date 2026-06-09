@@ -850,8 +850,9 @@ function updateSafetyNotice() {
 function valueForField(field) {
   if (field.type === "radio" || field.type === "yesno") {
     const resposta = radioValue(field.key);
-    const detailValue = field.detail ? String($(`#${field.detail.key}`)?.value || "").trim() : "";
-    return { resposta, value: field.type === "yesno" ? isYes(resposta) : resposta, detalhe: detailValue };
+    const entry = { resposta, value: field.type === "yesno" ? isYes(resposta) : resposta };
+    if (field.detail) entry.detalhe = String($(`#${field.detail.key}`)?.value || "").trim();
+    return entry;
   }
   if (field.type === "checkboxes") {
     const values = checkboxValues(field.key);
@@ -880,7 +881,7 @@ function collectAnswers() {
   for (const field of ALL_FIELDS) {
     const entry = valueForField(field);
     answers[field.key] = entry.value;
-    if (entry.detalhe !== undefined) answers[field.detail.key] = entry.detalhe;
+    if (field.detail && entry.detalhe !== undefined) answers[field.detail.key] = entry.detalhe;
     if (field.required) {
       const emptyRadio = (field.type === "radio" || field.type === "yesno") && !entry.resposta;
       const emptyValue = !(field.type === "radio" || field.type === "yesno") && (entry.value === "" || entry.value === null || entry.value === undefined);
