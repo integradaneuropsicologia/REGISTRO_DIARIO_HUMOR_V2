@@ -331,13 +331,23 @@ let patient = null;
 let startAt = Date.now();
 let sending = false;
 
+const SLEEP_HOUR_OPTIONS = Array.from({ length: 49 }, (_, index) => {
+  const value = index / 2;
+  const hours = Math.floor(value);
+  const minutes = value % 1 === 0 ? "" : "30";
+  return {
+    value: String(value),
+    label: minutes ? `${hours}h${minutes}` : `${hours}h`
+  };
+});
+
 const SECTIONS = [
   {
     title: "Sono e estado geral",
     fields: [
       { key: "data_registro", label: "Data", type: "date", required: true, full: false },
       { key: "dia_semana", label: "Dia da semana", type: "text", readonly: true, full: false },
-      { key: "horas_sono", label: "Horas de sono", type: "number", min: 0, max: 24, step: 0.5, required: true },
+      { key: "horas_sono", label: "Horas de sono", type: "select", numeric: true, required: true, options: SLEEP_HOUR_OPTIONS },
       { key: "acordou_estado", label: "Acordou cansado ou descansado?", type: "radio", required: true, options: ["Cansado", "Parcialmente descansado", "Descansado"] },
       { key: "humor_predominante", label: "Humor predominante", type: "select", required: true, options: ["Deprimido", "Irritado", "Normal", "Eufórico", "Expansivo", "Acelerado"] },
       { key: "humor_score", label: "Humor -5 a +5", type: "range", min: -5, max: 5, step: 1, defaultValue: 0, required: true },
@@ -645,6 +655,19 @@ function optionId(fieldKey, index) {
   return `${fieldKey}_${index}`.replace(/[^\w-]/g, "_");
 }
 
+function optionValue(option) {
+  return typeof option === "object" && option !== null ? option.value : option;
+}
+
+function optionLabel(option) {
+  return typeof option === "object" && option !== null ? option.label : option;
+}
+
+function optionLabelForField(field, value) {
+  const option = (field.options || []).find((item) => String(optionValue(item)) === String(value));
+  return option ? optionLabel(option) : String(value || "");
+}
+
 function renderField(field) {
   const wrapper = document.createElement("div");
   wrapper.className = `field${field.full ? " full" : ""}`;
@@ -667,7 +690,11 @@ function renderField(field) {
   }
 
   if (field.type === "select") {
-    const options = [`<option value="">Selecione</option>`].concat(field.options.map((opt) => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`));
+    const options = [`<option value="">Selecione</option>`].concat(field.options.map((opt) => {
+      const value = optionValue(opt);
+      const text = optionLabel(opt);
+      return `<option value="${escapeHTML(value)}">${escapeHTML(text)}</option>`;
+    }));
     wrapper.innerHTML = `${label}<select id="${field.key}" name="${field.key}"${required}>${options.join("")}</select>`;
     return wrapper;
   }
@@ -829,6 +856,14 @@ function valueForField(field) {
   if (field.type === "checkboxes") {
     const values = checkboxValues(field.key);
     return { resposta: values.length ? values.join(", ") : "Nenhum informado", value: values };
+  }
+  if (field.type === "select") {
+    const raw = String($(`#${field.key}`)?.value || "").trim();
+    if (field.numeric) {
+      const num = raw === "" ? null : Number(raw);
+      return { resposta: optionLabelForField(field, raw), value: Number.isFinite(num) ? num : null };
+    }
+    return { resposta: raw, value: raw };
   }
   if (field.type === "number" || field.type === "range") {
     const raw = $(`#${field.key}`)?.value;
