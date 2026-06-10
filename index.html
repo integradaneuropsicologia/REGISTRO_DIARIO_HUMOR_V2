@@ -1157,6 +1157,17 @@ async function submitForm(event) {
     if (!access) return;
     patient = access;
     renderPatientInfo();
+
+    const testCode = getTestCodeFromUrl();
+    const cpf = normalizeCPF(access.cpf || "");
+    const progress = getDailyProgress(access.tests_feitos, testCode);
+    const responseState = await fetchDailyResponseState(cpf, testCode);
+    const currentCount = Math.max(progress.count || 0, responseState.count ?? 0);
+    if (progress.feito || currentCount >= DAILY_LIMIT) {
+      setBox("#alert", `Ciclo de 30 registros concluído. Este formulário está marcado como feito (${DAILY_LIMIT}/${DAILY_LIMIT}).`, "ok");
+      return;
+    }
+
     renderForm();
     $("#form").classList.remove("hidden");
     setBox("#alert", "");
