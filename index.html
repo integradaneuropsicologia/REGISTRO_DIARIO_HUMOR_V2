@@ -458,6 +458,23 @@ function getTestCodeFromUrl() {
   return String(params.get("form") || params.get("code") || TEST_CODE_FIXO).trim();
 }
 
+function normalizeCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function isDailyResponseCode(code, baseCode) {
+  const cleanCode = normalizeCode(code);
+  const cleanBase = normalizeCode(baseCode);
+  return cleanCode === cleanBase || cleanCode.startsWith(`${cleanBase}__`);
+}
+
+function buildDailyResponseCode(baseCode, registroNumero, submittedAt) {
+  if (registroNumero <= 1) return baseCode;
+  const compactDate = String(submittedAt || new Date().toISOString()).replace(/\D+/g, "").slice(0, 14);
+  const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `${baseCode}__R${String(registroNumero).padStart(3, "0")}__${compactDate}_${randomPart}`;
+}
+
 function redirectToAreaPaciente(cpf) {
   const u = new URL(AREA_PACIENTE_URL, location.href);
   const token = getTokenFromUrl();
@@ -587,54 +604,26 @@ function dailyCountFromResponse(row) {
 async function fetchDailyResponseState(cpf, testCode) {
   const { data, error } = await supabaseClient
     .from("respostas")
-    .select("submitted_at, results, results_meta")
-    .eq("cpf", cpf)
-    .eq("code", testCode)
-    .maybeSingle();
+    .select("code, submitted_at, results, results_meta")
+    .eq("cpf", cpf);
   if (error) {
     console.warn("Não foi possível carregar o registro diário já salvo.", error);
-    return { row: null, count: null, entries: [] };
+    return { rows: [], count: null };
   }
-  const entries = extractDailyEntries(data);
-  return { row: data || null, count: dailyCountFromResponse(data), entries };
+  const rows = (Array.isArray(data) ? data : []).filter((row) => isDailyResponseCode(row.code, testCode));
+  const count = rows.reduce((sum, row) => {
+    return sum + (normalizeCode(row.code) === normalizeCode(testCode) ? Math.max(1, dailyCountFromResponse(row)) : 1);
+  }, 0);
+  return { rows, count };
 }
 
-function buildStoredDailyPayload(existingRow, currentEntry, currentResults, currentMeta) {
-  const previousEntries = extractDailyEntries(existingRow);
-  const entries = previousEntries.concat(currentEntry);
-  const total = Math.max(entries.length, Number(currentEntry.registro_numero) || entries.length);
-  const results = currentResults.concat([{
-    key: "registros_historico",
-    pergunta: "Histórico dos registros diários",
-    resposta: `${total} registro${total === 1 ? "" : "s"} no ciclo`,
-    valor: entries
-  }]);
-  const resultsMeta = currentMeta.concat([
-    { key: "registros_total", label: "Total de registros no ciclo", value: total },
-    { key: "registros", label: "Registros diários", value: entries }
-  ]);
-  return { results, results_meta: resultsMeta };
-}
-
-async function saveDailyResponse({ cpf, testCode, submittedAt, existingRow, results, resultsMeta, currentEntry }) {
-  const payload = {
-    submitted_at: submittedAt,
-    ...buildStoredDailyPayload(existingRow, currentEntry, results, resultsMeta)
-  };
-
-  if (existingRow) {
-    const { error } = await supabaseClient
-      .from("respostas")
-      .update(payload)
-      .eq("cpf", cpf)
-      .eq("code", testCode);
-    return error;
-  }
-
+async function saveDailyResponse({ cpf, responseCode, submittedAt, results, resultsMeta }) {
   const { error } = await supabaseClient.from("respostas").insert([{
     cpf,
-    code: testCode,
-    ...payload
+    code: responseCode,
+    submitted_at: submittedAt,
+    results,
+    results_meta: resultsMeta
   }]);
   return error;
 }
@@ -1120,22 +1109,17 @@ async function submitForm(event) {
     }
 
     const registroNumero = Math.min(currentCount + 1, DAILY_LIMIT);
-    const resultsMeta = buildMeta(answers, durationSec, registroNumero);
-    const currentEntry = {
-      registro_numero: registroNumero,
-      submitted_at: submittedAt,
-      data_registro: answers.data_registro,
-      results,
-      results_meta: resultsMeta
-    };
+    const responseCode = buildDailyResponseCode(testCode, registroNumero, submittedAt);
+    const resultsMeta = buildMeta(answers, durationSec, registroNumero).concat([
+      { key: "form_code_base", label: "Código base do formulário", value: testCode },
+      { key: "response_code", label: "Código do registro salvo", value: responseCode }
+    ]);
     const saveError = await saveDailyResponse({
       cpf,
-      testCode,
+      responseCode,
       submittedAt,
-      existingRow: responseState.row,
       results,
-      resultsMeta,
-      currentEntry
+      resultsMeta
     });
 
     if (saveError) {
