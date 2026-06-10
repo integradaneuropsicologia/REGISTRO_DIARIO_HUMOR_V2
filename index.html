@@ -601,11 +601,16 @@ function dailyCountFromResponse(row) {
   );
 }
 
-async function fetchDailyResponseState(cpf, testCode) {
-  const { data, error } = await supabaseClient
+async function fetchDailyResponseState(cpf, testCode, evaluationId) {
+  let query = supabaseClient
     .from("respostas")
-    .select("code, submitted_at, results, results_meta")
+    .select("code, submitted_at, results, results_meta, evaluation_id")
     .eq("cpf", cpf);
+
+  query = evaluationId ? query.eq("evaluation_id", evaluationId) : query.is("evaluation_id", null);
+
+  const { data, error } = await query;
+
   if (error) {
     console.warn("Não foi possível carregar o registro diário já salvo.", error);
     return { rows: [], count: null };
@@ -617,14 +622,18 @@ async function fetchDailyResponseState(cpf, testCode) {
   return { rows, count };
 }
 
-async function saveDailyResponse({ cpf, responseCode, submittedAt, results, resultsMeta }) {
-  const { error } = await supabaseClient.from("respostas").insert([{
-    cpf,
-    code: responseCode,
-    submitted_at: submittedAt,
-    results,
-    results_meta: resultsMeta
-  }]);
+async function saveDailyResponse({ token, testCode, responseCode, results, resultsMeta, registroNumero, dataRegistro }) {
+  const { error } = await supabaseClient.rpc("submit_public_daily_patient_form_response", {
+    p_token: token,
+    p_form_code: testCode,
+    p_form_name: "Registro Diário de Humor e Comportamento",
+    p_response_code: responseCode,
+    p_results: results,
+    p_results_meta: resultsMeta,
+    p_registro_numero: registroNumero,
+    p_data_registro: dataRegistro || null,
+    p_limite: DAILY_LIMIT
+  });
   return error;
 }
 
@@ -1102,7 +1111,7 @@ async function submitForm(event) {
     if (!patientRow) throw new Error("CPF não encontrado.");
     if (!isTestLiberado(patientRow.tests_liberados, testCode)) throw new Error("Registro diário não liberado.");
     const progress = getDailyProgress(patientRow.tests_feitos, testCode);
-    const responseState = await fetchDailyResponseState(cpf, testCode);
+    const responseState = await fetchDailyResponseState(cpf, testCode, patientRow.evaluation_id || null);
     const currentCount = Math.max(progress.count || 0, responseState.count ?? 0);
     if (progress.feito || currentCount >= DAILY_LIMIT) {
       throw new Error("O ciclo de 30 registros já foi concluído. Este formulário está marcado como feito.");
@@ -1115,26 +1124,18 @@ async function submitForm(event) {
       { key: "response_code", label: "Código do registro salvo", value: responseCode }
     ]);
     const saveError = await saveDailyResponse({
-      cpf,
+      token: getTokenFromUrl(),
+      testCode,
       responseCode,
-      submittedAt,
       results,
-      resultsMeta
+      resultsMeta,
+      registroNumero,
+      dataRegistro: answers.data_registro
     });
 
     if (saveError) {
       throw new Error(("Erro ao salvar registro: " + (saveError.message || "")).trim());
     }
-
-    const progressForSave = buildUpdatedDailyTestsFeitos(patientRow.tests_feitos, testCode, submittedAt, answers.data_registro, registroNumero);
-    progressForSave[testCode].count = registroNumero;
-    progressForSave[testCode].feito = registroNumero >= DAILY_LIMIT;
-    const nextTestsFeitos = progressForSave;
-    const { error: updateError } = await supabaseClient
-      .from("patients")
-      .update({ tests_feitos: nextTestsFeitos })
-      .eq("cpf", cpf);
-    if (updateError) console.warn("Registro salvo, mas falhou ao atualizar o progresso de 30 dias.", updateError);
 
     localStorage.removeItem(AUTOSAVE_KEY);
     const risk = answers.pensamentos_morte_suicidio === true;
@@ -1161,7 +1162,7 @@ async function submitForm(event) {
     const testCode = getTestCodeFromUrl();
     const cpf = normalizeCPF(access.cpf || "");
     const progress = getDailyProgress(access.tests_feitos, testCode);
-    const responseState = await fetchDailyResponseState(cpf, testCode);
+    const responseState = await fetchDailyResponseState(cpf, testCode, access.evaluation_id || null);
     const currentCount = Math.max(progress.count || 0, responseState.count ?? 0);
     if (progress.feito || currentCount >= DAILY_LIMIT) {
       setBox("#alert", `Ciclo de 30 registros concluído. Este formulário está marcado como feito (${DAILY_LIMIT}/${DAILY_LIMIT}).`, "ok");
